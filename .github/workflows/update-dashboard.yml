@@ -2,6 +2,13 @@ name: Cập nhật dashboard GS5 V2 – AF
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "scripts/**"
+      - ".github/workflows/update-dashboard.yml"
+      - "requirements.txt"
   schedule:
     - cron: "7,22,37,52 * * * *"
 
@@ -33,11 +40,15 @@ jobs:
       - name: Kiểm tra hợp đồng Dòng hàng mẹ AF
         run: python scripts/test_af_contract.py
 
+      - name: Kiểm tra hợp đồng cập nhật nguồn SHA-256
+        run: python scripts/test_source_refresh.py
+
       - name: Kiểm tra phiên bản Excel trên Drive
         id: source
         run: |
           python scripts/process_excel.py \
             --probe \
+            --download-to .source/P3_Tong_Hop_LTT_GS5.xlsx \
             --github-output "$GITHUB_OUTPUT"
 
       - name: Khôi phục dữ liệu đã xử lý đúng phiên bản
@@ -45,33 +56,33 @@ jobs:
         uses: actions/cache@v4
         with:
           path: site/data
-          key: gs5-v2-af-data-${{ steps.source.outputs.signature }}
+          key: gs5-v3-content-sha256-${{ steps.source.outputs.signature }}-${{ github.sha }}
 
       - name: Xử lý Excel thành dữ liệu theo tháng
-        if: steps.data-cache.outputs.cache-hit != 'true'
-        run: python scripts/process_excel.py --out site/data
+        if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch'
+        run: python scripts/process_excel.py --input .source/P3_Tong_Hop_LTT_GS5.xlsx --out site/data
 
       - name: Kiểm tra dữ liệu trước khi phát hành
-        if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         run: python scripts/verify_build.py --data site/data
 
       - name: Chuẩn bị website
-        if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         run: |
           cp index.html site/index.html
           touch site/.nojekyll
 
       - name: Cấu hình GitHub Pages
-        if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         uses: actions/configure-pages@v5
 
       - name: Đóng gói GitHub Pages
-        if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
       - name: Phát hành dashboard
-        if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         id: deployment
         uses: actions/deploy-pages@v4
