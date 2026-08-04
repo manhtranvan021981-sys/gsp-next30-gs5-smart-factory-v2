@@ -56,7 +56,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: site/data
-          key: gs5-v3-content-sha256-${{ steps.source.outputs.signature }}-${{ github.sha }}
+          key: gs5-v4-af-quality-${{ steps.source.outputs.signature }}-${{ github.sha }}
 
       - name: Xử lý Excel thành dữ liệu theo tháng
         if: steps.data-cache.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch'
