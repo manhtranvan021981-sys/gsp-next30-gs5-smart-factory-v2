@@ -39,7 +39,7 @@ SOURCE_URL = (
     "https://drive.usercontent.google.com/download"
     f"?id={FILE_ID}&export=download&confirm=t"
 )
-SCHEMA_VERSION = "gs5-static-shards-v3-af-alias-sha256"
+SCHEMA_VERSION = "gs5-static-shards-v4-af-quality-independent"
 MAX_COLUMNS = 98  # A:CT, zero-based indices 0..97.
 
 AF_MASTER: tuple[tuple[str, str, str], ...] = (
@@ -109,6 +109,8 @@ PROCESSED_COLS = [
     "af_raw_code",
     "af_code",
     "af_status",
+    "af_quality_flag",
+    "af_conflict_codes",
     "segment_code",
     "segment_label",
     "segment",
@@ -315,25 +317,22 @@ def canonical_af(value: Any) -> str:
 
 def classify_af(
     raw: list[Any],
-    ltt_conflicts: set[str] | None = None,
-    stat_conflicts: set[str] | None = None,
+    ltt_conflicts: dict[str, tuple[str, ...]] | None = None,
+    stat_conflicts: dict[str, tuple[str, ...]] | None = None,
 ) -> dict[str, Any]:
     ltt = clean_text(raw_at(raw, 2))
     stat = clean_text(raw_at(raw, 45))
     af_raw_code = normalize_af(raw_at(raw, 31))
     af_code = canonical_af(af_raw_code)
-    conflict_ltt = bool(ltt and ltt_conflicts and ltt in ltt_conflicts)
-    conflict_stat = bool(stat and stat_conflicts and stat in stat_conflicts)
+    ltt_codes = (ltt_conflicts or {}).get(ltt, ()) if ltt else ()
+    stat_codes = (stat_conflicts or {}).get(stat, ()) if stat else ()
+    conflict_ltt = bool(ltt_codes)
+    conflict_stat = bool(stat_codes)
+    conflict_codes = tuple(sorted(set(ltt_codes) | set(stat_codes)))
 
-    if conflict_ltt or conflict_stat:
-        item = AF_CONTROL_BY_CODE["98"]
-        if conflict_ltt and conflict_stat:
-            status = "Xung đột LTT và phiếu"
-        elif conflict_ltt:
-            status = "Xung đột LTT"
-        else:
-            status = "Xung đột phiếu"
-    elif not af_code:
+    # Mảng KPI và cờ chất lượng AF là hai trục độc lập. Xung đột không được
+    # phép kéo một dòng hợp lệ ra khỏi mảng sản phẩm thật của chính dòng đó.
+    if not af_code:
         item = AF_CONTROL_BY_CODE["00"]
         status = "AF trống"
     elif af_code not in AF_BY_CODE:
@@ -343,10 +342,25 @@ def classify_af(
         item = AF_BY_CODE[af_code]
         status = "Hợp lệ qua ánh xạ" if af_raw_code in AF_ALIASES else "Hợp lệ"
 
+    if conflict_ltt and conflict_stat:
+        quality_flag = "Xung đột thật: LTT và phiếu"
+    elif conflict_ltt:
+        quality_flag = "Xung đột thật: LTT"
+    elif conflict_stat:
+        quality_flag = "Xung đột thật: phiếu"
+    elif not af_code:
+        quality_flag = "Thiếu AF"
+    elif af_code not in AF_BY_CODE:
+        quality_flag = "AF chưa ánh xạ"
+    else:
+        quality_flag = "Hợp lệ"
+
     return {
         "af_raw_code": af_raw_code,
         "af_code": af_code,
         "af_status": status,
+        "af_quality_flag": quality_flag,
+        "af_conflict_codes": " | ".join(conflict_codes),
         "segment_code": item["segment_code"],
         "segment_label": item["label"],
         "segment": item["label"],
@@ -677,7 +691,7 @@ def analyze_af_conflicts(
     sheet_path: str,
     shared_strings: list[str],
     plant_code: str,
-) -> tuple[set[str], set[str]]:
+) -> tuple[dict[str, tuple[str, ...]], dict[str, tuple[str, ...]]]:
     ltt_af: dict[str, set[str]] = defaultdict(set)
     stat_af: dict[str, set[str]] = defaultdict(set)
     inspected = 0
@@ -695,15 +709,23 @@ def analyze_af_conflicts(
         ):
             continue
         inspected += 1
-        af_code = canonical_af(raw_at(raw, 31)) or "__MISSING__"
+        af_code = canonical_af(raw_at(raw, 31))
+        # Trống và mã chưa ánh xạ là vấn đề chất lượng riêng (00/99), chưa đủ
+        # căn cứ kết luận hai mảng chuẩn xung đột với nhau.
+        if af_code not in AF_BY_CODE:
+            continue
         ltt = clean_text(raw_at(raw, 2))
         stat = clean_text(raw_at(raw, 45))
         if ltt:
             ltt_af[ltt].add(af_code)
         if stat:
             stat_af[stat].add(af_code)
-    ltt_conflicts = {key for key, values in ltt_af.items() if len(values) > 1}
-    stat_conflicts = {key for key, values in stat_af.items() if len(values) > 1}
+    ltt_conflicts = {
+        key: tuple(sorted(values)) for key, values in ltt_af.items() if len(values) > 1
+    }
+    stat_conflicts = {
+        key: tuple(sorted(values)) for key, values in stat_af.items() if len(values) > 1
+    }
     print(
         f"Kiểm tra AF: {inspected:,} dòng {plant_code}, "
         f"{len(ltt_conflicts):,} LTT xung đột, "
@@ -1091,6 +1113,8 @@ def build_data(
                             "k": clean_text(raw_at(raw, 10)),
                             "af": processed_obj["af_code"],
                             "af_status": processed_obj["af_status"],
+                            "af_quality_flag": processed_obj["af_quality_flag"],
+                            "af_conflict_codes": processed_obj["af_conflict_codes"],
                             "segment_code": processed_obj["segment_code"],
                             "segment_label": processed_obj["segment_label"],
                             "af_conflict_ltt": processed_obj["af_conflict_ltt"],
@@ -1099,10 +1123,6 @@ def build_data(
                             "filters": set(),
                         },
                     )
-                    if processed_obj["segment_code"] == "98":
-                        group["af_status"] = processed_obj["af_status"]
-                        group["segment_code"] = "98"
-                        group["segment_label"] = AF_CONTROL_BY_CODE["98"]["label"]
                     group["af_conflict_ltt"] = bool(
                         group["af_conflict_ltt"]
                         or processed_obj["af_conflict_ltt"]
@@ -1111,6 +1131,9 @@ def build_data(
                         group["af_conflict_stat"]
                         or processed_obj["af_conflict_stat"]
                     )
+                    if processed_obj["af_conflict_codes"]:
+                        group["af_conflict_codes"] = processed_obj["af_conflict_codes"]
+                        group["af_quality_flag"] = processed_obj["af_quality_flag"]
                     ab = clean_text(raw_at(raw, 27))
                     machine_filter = clean_text(raw_at(raw, 47) or raw_at(raw, 27))
                     if ab:
@@ -1199,6 +1222,8 @@ def build_data(
                     "af": group["af"],
                     "af_code": group["af"],
                     "af_status": group["af_status"],
+                    "af_quality_flag": group["af_quality_flag"],
+                    "af_conflict_codes": group["af_conflict_codes"],
                     "segment_code": group["segment_code"],
                     "segment_label": group["segment_label"],
                     "af_conflict_ltt": group["af_conflict_ltt"],
@@ -1250,7 +1275,7 @@ def build_data(
     dated_periods = [item["value"] for item in periods if item["value"] != "Không tháng"]
     manifest = {
         "schema": SCHEMA_VERSION,
-        "schema_version": 3,
+        "schema_version": 4,
         "plant": plant_code,
         "generated_at": generated_iso,
         "generated_display": generated,
@@ -1278,7 +1303,11 @@ def build_data(
         "af_control_groups": [
             {
                 **item,
-                "rows": global_segment_counts.get(item["segment_code"], 0),
+                "rows": (
+                    global_af_conflict_rows
+                    if item["segment_code"] == "98"
+                    else global_segment_counts.get(item["segment_code"], 0)
+                ),
             }
             for item in AF_CONTROL_GROUPS
         ],

@@ -31,7 +31,7 @@ def main() -> int:
     required = (
         "push:",
         "--download-to .source/P3_Tong_Hop_LTT_GS5.xlsx",
-        "gs5-v3-content-sha256-",
+        "gs5-v4-af-quality-",
         "github.event_name == 'workflow_dispatch'",
         "--input .source/P3_Tong_Hop_LTT_GS5.xlsx",
     )

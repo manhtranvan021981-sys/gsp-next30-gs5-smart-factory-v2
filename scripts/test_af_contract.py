@@ -90,21 +90,39 @@ def main() -> int:
     assert result["af_status"] == "AF trống"
 
     ltt_conflict = raw_row(af="FLC", ltt="LTT-X")
-    result = classify_af(ltt_conflict, {"LTT-X"}, set())
-    assert result["segment_code"] == "98"
+    result = classify_af(ltt_conflict, {"LTT-X": ("FLC", "HBL")}, {})
+    assert result["segment_code"] == "05_FLC"
     assert result["af_conflict_ltt"] is True
     assert result["af_conflict_stat"] is False
+    assert result["af_conflict_codes"] == "FLC | HBL"
+    assert result["af_quality_flag"] == "Xung đột thật: LTT"
 
     stat_conflict = raw_row(af="HOC", stat="TK-X")
-    result = classify_af(stat_conflict, set(), {"TK-X"})
-    assert result["segment_code"] == "98"
-    assert result["af_status"] == "Xung đột phiếu"
+    result = classify_af(stat_conflict, {}, {"TK-X": ("HBL", "HOC")})
+    assert result["segment_code"] == "01_HOC"
+    assert result["af_status"] == "Hợp lệ"
+    assert result["af_quality_flag"] == "Xung đột thật: phiếu"
 
     processed = process_raw_row(stat_conflict, result)
     obj = dict(zip(PROCESSED_COLS, processed))
     assert obj["segment"] == obj["segment_label"]
     assert obj["confidence"] == "Đỏ"
     assert "AF xung đột" in obj["flags"]
+
+    # Blank/unmapped are separate quality issues and must not displace a valid AF.
+    valid_with_blank = classify_af(raw_row(af="PHOI", ltt="LTT-BLANK"), {}, {})
+    blank_with_valid = classify_af(raw_row(af="", ltt="LTT-BLANK"), {}, {})
+    assert valid_with_blank["segment_code"] == "10_PHOI"
+    assert valid_with_blank["af_conflict_ltt"] is False
+    assert blank_with_valid["segment_code"] == "00"
+    assert blank_with_valid["af_conflict_ltt"] is False
+
+    valid_with_unknown = classify_af(raw_row(af="HBL", ltt="LTT-UNKNOWN"), {}, {})
+    unknown = classify_af(raw_row(af="XYZ", ltt="LTT-UNKNOWN"), {}, {})
+    assert valid_with_unknown["segment_code"] == "04_HBL"
+    assert unknown["segment_code"] == "99"
+    assert not valid_with_unknown["af_conflict_ltt"]
+    assert not unknown["af_conflict_ltt"]
 
     valid = process_raw_row(flc, classify_af(flc))
     valid_obj = dict(zip(PROCESSED_COLS, valid))
@@ -115,8 +133,8 @@ def main() -> int:
     assert valid_obj["af_conflict_stat"] is False
 
     print(
-        "AF CONTRACT OK: 19 mã chuẩn, 11 alias, 00/98/99 "
-        "và no-inference đều đạt."
+        "AF CONTRACT OK: 19 mã chuẩn, 11 alias, 00/99 độc lập, "
+        "98 là cờ lọc và no-inference đều đạt."
     )
     return 0
 

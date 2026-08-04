@@ -16,6 +16,8 @@ EXPECTED_COLS = [
     "af_raw_code",
     "af_code",
     "af_status",
+    "af_quality_flag",
+    "af_conflict_codes",
     "segment_code",
     "segment_label",
     "segment",
@@ -76,7 +78,7 @@ EXPECTED_COLS = [
     "capa_rate_tech",
 ]
 
-EXPECTED_SCHEMA = "gs5-static-shards-v3-af-alias-sha256"
+EXPECTED_SCHEMA = "gs5-static-shards-v4-af-quality-independent"
 AF_ALIASES = {
     "SOB": "PHOI",
     "SOE": "PHOI",
@@ -131,7 +133,7 @@ def main() -> int:
     manifest_path = args.data / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["schema"] == EXPECTED_SCHEMA
-    assert manifest["schema_version"] == 3
+    assert manifest["schema_version"] == 4
     assert manifest["plant"] == args.plant, (
         f"Sai nhà máy: manifest={manifest['plant']}, yêu cầu={args.plant}."
     )
@@ -182,8 +184,9 @@ def main() -> int:
                     assert af_raw_code == ""
                     assert row["af_status"] == "AF trống"
                 elif segment_code == "98":
-                    assert row["af_conflict_ltt"] or row["af_conflict_stat"]
-                    assert str(row["af_status"]).startswith("Xung đột")
+                    raise AssertionError(
+                        "98 chỉ được dùng làm bộ lọc chất lượng, không được ghi đè mảng KPI."
+                    )
                 else:
                     assert af_code and af_code not in MASTER_SEGMENTS
                     assert af_raw_code not in AF_ALIASES
@@ -198,8 +201,17 @@ def main() -> int:
                     "Hợp lệ qua ánh xạ" if af_raw_code in AF_ALIASES else "Hợp lệ"
                 )
                 assert row["af_status"] == expected_status
-                assert not row["af_conflict_ltt"]
-                assert not row["af_conflict_stat"]
+                if row["af_conflict_ltt"] or row["af_conflict_stat"]:
+                    codes = {
+                        item.strip()
+                        for item in str(row["af_conflict_codes"]).split("|")
+                        if item.strip()
+                    }
+                    assert len(codes) >= 2
+                    assert codes <= set(MASTER_SEGMENTS)
+                    assert str(row["af_quality_flag"]).startswith("Xung đột thật")
+                else:
+                    assert row["af_conflict_codes"] == ""
         total += period["rows"]
     assert total == manifest["global"]["accepted_rows"]
     assert observed_counts == manifest["global"]["af_quality"]["segment_counts"]
@@ -216,6 +228,7 @@ def main() -> int:
             *CONTROL_SEGMENTS,
             *(value[0] for value in MASTER_SEGMENTS.values()),
         }
+        assert row["segment_code"] != "98"
     print(
         f"VERIFY OK: {total:,} dòng, {len(manifest['periods'])} phân vùng, "
         f"{len(schedule['rows']):,} dòng lịch hiện hành."
