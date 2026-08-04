@@ -1,5 +1,15 @@
 # GS5 Smart Factory V2 – Dòng hàng mẹ AF
 
+## Bản AF Alias + Content SHA-256
+
+- Thay nhận diện phiên bản bằng metadata Drive bằng SHA-256 của toàn bộ nội dung Excel.
+- Chạy thủ công bắt buộc rebuild; cache không còn chặn đọc file mới.
+- Bổ sung trigger `push` để thay mã nguồn được phát hành ngay.
+- Manifest bổ sung checksum, dung lượng, số dòng quét/nhận, khoảng ngày và tháng mới nhất.
+- Đồng bộ 19 dòng hàng mẹ với GS1 V2.
+- Quy đổi 10 alias về PHOI và DUP về HBL trước khi kiểm tra xung đột.
+- Giữ đồng thời AF gốc và AF chuẩn để truy vết.
+
 Ngày build kiểm thử: 27/07/2026  
 Nguồn: `P3_Tong_Hop_LTT_2507.xlsx`  
 Nhà máy: `GS5`
@@ -13,7 +23,7 @@ Nhà máy: `GS5`
 - Không suy luận từ máy, công đoạn, vật tư, AG hoặc AH.
 - Giữ `KHC` là dòng hàng hợp lệ số 17.
 - Đồng bộ dữ liệu chính, OEE/Capa, Downtime Pareto, Loss Map, LTT, Máy/Thợ, lịch máy và Data Quality.
-- Schema mới: `gs5-static-shards-v2-af`.
+- Schema mới: `gs5-static-shards-v3-af-alias-sha256`.
 - Cache/workflow V2 độc lập với GS5 V1.
 
 ## Kết quả build nguồn thật
@@ -29,7 +39,9 @@ Nhà máy: `GS5`
 | LTT xung đột AF | 18 |
 | Phiếu xung đột AF | 3 |
 
-Mã AF ngoài master: `SOB=15`, `IVR=7`, `SOC=3`, `SOA=2`.
+Kết quả trên là baseline lịch sử trước khi áp dụng alias. Từ bản này,
+`SOB/SOC/SOA` và các alias đã duyệt được quy về PHOI; chỉ mã chưa có trong
+master/alias mới ở nhóm 99.
 
 ## Đối soát hợp đồng
 

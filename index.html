@@ -347,7 +347,7 @@ aside{background:#fff!important;color:#035D30!important;border:1px solid #D9D9D9
 
 </main>
 </div>
-<script type="application/json" id="data-json">{"meta":{"source":"Đang chờ dữ liệu GitHub Pages GS5 V2 AF","generated":"","rows":0,"ltt":0,"stats":0,"machines":0,"operators":0,"date_min":"","date_max":""},"cols":["date","month","week","af_code","af_status","segment_code","segment_label","segment","af_conflict_ltt","af_conflict_stat","machine","operator","ltt","stat","mat_code","mat_name","process","process_code","line","line_name","unit","shift","qty","ok","ng","ng_rate","allow_qty","allow_rate","over_qty","over_pos","over_rate","downtime","prep_h","nvl_h","machine_h","file_h","reason","capacity","oee","A","P","Q","actual_prod","achv_tech","confidence","flag_count","flags","rag","ltt_req_qty","ltt_allow_ng_qty","converted_qty","setup_std_h","run_std_h","total_std_h","k_lot","job_size_class","oee_weight","oee_lot_adjusted","oee_weight_valid","capa_time_std","capa_actual","capa_rate_std","capa_rate_tech"],"rows":[]}</script>
+<script type="application/json" id="data-json">{"meta":{"source":"Đang chờ dữ liệu GitHub Pages GS5 V2 AF Alias/SHA-256","generated":"","rows":0,"ltt":0,"stats":0,"machines":0,"operators":0,"date_min":"","date_max":""},"cols":["date","month","week","af_raw_code","af_code","af_status","segment_code","segment_label","segment","af_conflict_ltt","af_conflict_stat","machine","operator","ltt","stat","mat_code","mat_name","process","process_code","line","line_name","unit","shift","qty","ok","ng","ng_rate","allow_qty","allow_rate","over_qty","over_pos","over_rate","downtime","prep_h","nvl_h","machine_h","file_h","reason","capacity","oee","A","P","Q","actual_prod","achv_tech","confidence","flag_count","flags","rag","ltt_req_qty","ltt_allow_ng_qty","converted_qty","setup_std_h","run_std_h","total_std_h","k_lot","job_size_class","oee_weight","oee_lot_adjusted","oee_weight_valid","capa_time_std","capa_actual","capa_rate_std","capa_rate_tech"],"rows":[]}</script>
 <script>
 (function(){
 'use strict';
@@ -403,14 +403,14 @@ const GSHEET_ID=smartFactorySheetId(SMART_FACTORY_SOURCE_CONFIG.production);
 const GSHEET_NAME=SMART_FACTORY_SOURCE_CONFIG.production.sheetName;
 const GSHEET_RANGE=SMART_FACTORY_SOURCE_CONFIG.production.range;
 // V4: giữ nguyên fixed index cột S/U/AR/AT/BG/BI/CH như V2; không dùng header auto-map để tránh lệch số liệu live.
-const PROCESSED_COLS=['date','month','week','af_code','af_status','segment_code','segment_label','segment','af_conflict_ltt','af_conflict_stat','machine','operator','ltt','stat','mat_code','mat_name','process','process_code','line','line_name','unit','shift','qty','ok','ng','ng_rate','allow_qty','allow_rate','over_qty','over_pos','over_rate','downtime','prep_h','nvl_h','machine_h','file_h','reason','capacity','oee','A','P','Q','actual_prod','achv_tech','confidence','flag_count','flags','rag','ltt_req_qty','ltt_allow_ng_qty','converted_qty','setup_std_h','run_std_h','total_std_h','k_lot','job_size_class','oee_weight','oee_lot_adjusted','oee_weight_valid','capa_time_std','capa_actual','capa_rate_std','capa_rate_tech'];
+const PROCESSED_COLS=['date','month','week','af_raw_code','af_code','af_status','segment_code','segment_label','segment','af_conflict_ltt','af_conflict_stat','machine','operator','ltt','stat','mat_code','mat_name','process','process_code','line','line_name','unit','shift','qty','ok','ng','ng_rate','allow_qty','allow_rate','over_qty','over_pos','over_rate','downtime','prep_h','nvl_h','machine_h','file_h','reason','capacity','oee','A','P','Q','actual_prod','achv_tech','confidence','flag_count','flags','rag','ltt_req_qty','ltt_allow_ng_qty','converted_qty','setup_std_h','run_std_h','total_std_h','k_lot','job_size_class','oee_weight','oee_lot_adjusted','oee_weight_valid','capa_time_std','capa_actual','capa_rate_std','capa_rate_tech'];
 const AF_MASTER=Object.freeze([
   {sort:'01',code:'HOC',segment_code:'01_HOC',label:'01_Nhóm hàng Hộp cứng'},
   {sort:'02',code:'HOT',segment_code:'02_HOT',label:'02_Nhóm hàng Hộp thường (hộp mềm)'},
   {sort:'03',code:'HBD',segment_code:'03_HBD',label:'03_Nhóm hàng Hộp bồi duplex'},
   {sort:'04',code:'HBL',segment_code:'04_HBL',label:'04_Nhóm hàng Hộp bồi label'},
   {sort:'05',code:'FLC',segment_code:'05_FLC',label:'05_Nhóm hàng Hộp Flexo carton'},
-  {sort:'06',code:'FLP',segment_code:'06_FLP',label:'06_Nhóm hàng Hộp Flexo proces'},
+  {sort:'06',code:'FLP',segment_code:'06_FLP',label:'06_Nhóm hàng Hộp Flexo process'},
   {sort:'07',code:'FPK',segment_code:'07_FPK',label:'07_Nhóm hàng PK phôi carton'},
   {sort:'08',code:'SHD',segment_code:'08_SHD',label:'08_Nhóm hàng Sách hướng dẫn'},
   {sort:'09',code:'PLL',segment_code:'09_PLL',label:'09_Nhóm hàng Pallet'},
@@ -432,8 +432,10 @@ const AF_CONTROLS=Object.freeze([
 ]);
 const AF_BY_CODE=Object.freeze(Object.fromEntries(AF_MASTER.map(x=>[x.code,x])));
 const AF_CONTROL_BY_CODE=Object.freeze(Object.fromEntries(AF_CONTROLS.map(x=>[x.code,x])));
+const AF_ALIASES=Object.freeze({SOB:'PHOI',SOE:'PHOI',SOA:'PHOI',SBA:'PHOI',SBC:'PHOI',SBE:'PHOI',SOC:'PHOI',SOG:'PHOI',SEE:'PHOI',SEC:'PHOI',DUP:'HBL'});
 window.GS5_AF_MASTER=AF_MASTER;
 window.GS5_AF_CONTROLS=AF_CONTROLS;
+window.GS5_AF_ALIASES=AF_ALIASES;
 const idx=name=>COLS.indexOf(name);
 const esc=v=>String(v==null?'':v).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const n=v=>Number(v)||0;
@@ -591,10 +593,12 @@ function isoWeek(d){
   return date.getUTCFullYear()+'-W'+String(week).padStart(2,'0');
 }
 function normalizeAf(value){return cleanText(value).toUpperCase();}
+function canonicalAf(value){const normalized=normalizeAf(value);return AF_ALIASES[normalized]||normalized;}
+window.gspGs5CanonicalAf=canonicalAf;
 function buildAfConflictContext(rawRows){
   const lttCodes=new Map(), statCodes=new Map();
   for(const raw of rawRows){
-    const af=normalizeAf(raw[31]); if(!af) continue;
+    const af=canonicalAf(raw[31])||'__MISSING__';
     const ltt=cleanText(raw[2]), stat=cleanText(raw[45]);
     if(ltt){if(!lttCodes.has(ltt))lttCodes.set(ltt,new Set());lttCodes.get(ltt).add(af);}
     if(stat){if(!statCodes.has(stat))statCodes.set(stat,new Set());statCodes.get(stat).add(af);}
@@ -605,7 +609,7 @@ function buildAfConflictContext(rawRows){
   };
 }
 function classifyAf(raw,context){
-  const af=normalizeAf(raw[31]),ltt=cleanText(raw[2]),stat=cleanText(raw[45]);
+  const afRaw=normalizeAf(raw[31]),af=canonicalAf(afRaw),ltt=cleanText(raw[2]),stat=cleanText(raw[45]);
   const conflictLtt=Boolean(ltt&&context&&context.ltt&&context.ltt.has(ltt));
   const conflictStat=Boolean(stat&&context&&context.stat&&context.stat.has(stat));
   let item,status;
@@ -614,8 +618,8 @@ function classifyAf(raw,context){
     status=conflictLtt&&conflictStat?'Xung đột LTT và phiếu':(conflictLtt?'Xung đột LTT':'Xung đột phiếu');
   }else if(!af){item=AF_CONTROL_BY_CODE['00'];status='AF trống';}
   else if(!AF_BY_CODE[af]){item=AF_CONTROL_BY_CODE['99'];status='AF ngoài danh mục';}
-  else{item=AF_BY_CODE[af];status='Hợp lệ';}
-  return {af_code:af,af_status:status,segment_code:item.segment_code,segment_label:item.label,segment:item.label,af_conflict_ltt:conflictLtt,af_conflict_stat:conflictStat};
+  else{item=AF_BY_CODE[af];status=AF_ALIASES[afRaw]?'Hợp lệ qua ánh xạ':'Hợp lệ';}
+  return {af_raw_code:afRaw,af_code:af,af_status:status,segment_code:item.segment_code,segment_label:item.label,segment:item.label,af_conflict_ltt:conflictLtt,af_conflict_stat:conflictStat};
 }
 function classifySegment(raw,context){return classifyAf(raw,context).segment_label;}
 function ragFor(r){
@@ -748,7 +752,7 @@ window.gs5StaticFetchJson=gs5StaticFetchJson;
 async function loadStaticManifest(force){
   if(STATIC_MANIFEST && !force) return STATIC_MANIFEST;
   const manifest=await gs5StaticFetchJson(SMART_FACTORY_SOURCE_CONFIG.production.manifestUrl,false);
-  if(!manifest || manifest.schema!=='gs5-static-shards-v2-af') throw new Error('Manifest GS5 V2 AF sai hoặc không tương thích.');
+  if(!manifest || manifest.schema!=='gs5-static-shards-v3-af-alias-sha256') throw new Error('Manifest GS5 V2 AF Alias/SHA-256 sai hoặc không tương thích.');
   if(manifest.plant!==SMART_FACTORY_SOURCE_CONFIG.identity.plantCode) throw new Error('Chặn dữ liệu sai nhà máy: manifest='+manifest.plant+', dashboard='+SMART_FACTORY_SOURCE_CONFIG.identity.plantCode+'.');
   STATIC_MANIFEST=manifest;
   window.__GS5_STATIC_MANIFEST__=manifest;
@@ -882,7 +886,7 @@ function aggregate(rows, keys){
 }
 function filtered(){
   const m=$('fMonth').value, w=$('fWeek').value, s=$('fSegment').value, mach=$('fMachine').value, q=$('fSearch').value.trim().toLowerCase();
-  return ROWS.filter(r=>(m==='all'||r.month===m)&&(w==='all'||r.week===w)&&(s==='all'||r.segment===s)&&(mach==='all'||r.machine===mach)&&(!q||[r.af_code,r.af_status,r.segment_label,r.ltt,r.stat,r.mat_code,r.mat_name,r.machine,r.operator,r.process].map(v=>String(v||'')).join(' ').toLowerCase().includes(q)));
+  return ROWS.filter(r=>(m==='all'||r.month===m)&&(w==='all'||r.week===w)&&(s==='all'||r.segment===s)&&(mach==='all'||r.machine===mach)&&(!q||[r.af_raw_code,r.af_code,r.af_status,r.segment_label,r.ltt,r.stat,r.mat_code,r.mat_name,r.machine,r.operator,r.process].map(v=>String(v||'')).join(' ').toLowerCase().includes(q)));
 }
 function kpi(label,value,note){return `<div class="kpi"><div class="kpi-label">${esc(label)}</div><div class="kpi-val">${value}</div><div class="kpi-note">${esc(note||'')}</div></div>`}
 function table(id, headers, rows, mapper, limit){
@@ -1559,7 +1563,7 @@ function renderDowntimeParetoChart(reasons, scopedRows){
   el.innerHTML=`<div class="alert"><b>Bộ lọc Pareto:</b> ${esc(filterLabel)} · ${num(scopedRows.length)} dòng sau lọc · Tổng downtime ${dec(total)}h. Biểu đồ đang gom theo <b>nhóm nguyên nhân chuẩn</b>, không dùng nguyên văn CA để tránh vỡ nhóm.</div><div class="dt-pareto-wrap"><svg class="dt-pareto-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pareto nhóm nguyên nhân downtime">${grid}<text x="${ml}" y="18" font-size="11" fill="#64748b">Trục trái: Downtime giờ</text><text x="${W-mr}" y="18" text-anchor="end" font-size="11" fill="#64748b">Trục phải: % cộng dồn</text><text x="${W/2}" y="20" text-anchor="middle" font-size="16" fill="#035D30" font-weight="900">Pareto nhóm nguyên nhân downtime</text><line x1="${ml}" y1="${y80}" x2="${W-mr}" y2="${y80}" stroke="#f59e0b" stroke-width="2" stroke-dasharray="7 5"/><text x="${W-mr-4}" y="${y80-6}" text-anchor="end" font-size="11" fill="#92400e" font-weight="900">Mốc 80%</text>${barsSvg}<polyline points="${poly}" fill="none" stroke="#7c3aed" stroke-width="3"/>${pts}${cumLabels}<line x1="${ml}" y1="${mt+plotH}" x2="${W-mr}" y2="${mt+plotH}" stroke="#94a3b8"/><line x1="${ml}" y1="${mt}" x2="${ml}" y2="${mt+plotH}" stroke="#94a3b8"/><line x1="${W-mr}" y1="${mt}" x2="${W-mr}" y2="${mt+plotH}" stroke="#94a3b8"/></svg><div class="dt-pareto-legend"><span><span class="dt-pareto-dot" style="background:#035D30"></span>Nhóm nằm trước mốc 80%</span><span><span class="dt-pareto-dot" style="background:#94a3b8"></span>Nhóm theo dõi</span><span><span class="dt-pareto-dot" style="background:#dc2626"></span>Thiếu phân loại nguyên nhân</span><span><span class="dt-pareto-line"></span>% cộng dồn</span></div></div>`;
 }
 function renderDowntime(rows){const t=totals(rows), mach=aggregate(rows,['segment','machine']); $('dtCards').innerHTML=[kpi('Tổng downtime',dec(t.dt)+'h','Theo bộ lọc'),kpi('Chờ NVL',dec(sum(rows,'nvl_h'))+'h','KH/Kho/SX'),kpi('Hỏng máy/mất điện',dec(sum(rows,'machine_h'))+'h','QLTB + SX'),kpi('Sửa file/khuôn/bản',dec(sum(rows,'file_h'))+'h','CN + khuôn/bản')].join(''); bars('chartDtType',[{type:'Chờ NVL',v:sum(rows,'nvl_h')},{type:'Hỏng máy/mất điện',v:sum(rows,'machine_h')},{type:'Sửa file/khuôn/bản',v:sum(rows,'file_h')},{type:'Chuẩn bị',v:sum(rows,'prep_h')}],'type','v',{n:4,color:'blue',fmt:'dec'}); bars('chartDtMachine',mach,'machine','downtime',{n:12,color:'blue',fmt:'dec'}); const paretoRows=downtimeParetoScopedRows(rows); const reasons=downtimeReasonPareto(paretoRows); renderDowntimeParetoChart(reasons,paretoRows); table('tblReason',['Rank','RAG','Nhóm nguyên nhân','Số dòng','Downtime','Tỷ trọng','Cộng dồn','Top nguyên nhân gốc','Owner đề xuất','Hành động gợi ý'],reasons,r=>[td(num(r.rank),'num'),td(`<span class="badge ${cls[r.rag]||'gray'}">${esc(r.rag)}</span>`),td(esc(r.reason)),td(num(r.rows),'num'),td(dec(r.downtime)+'h','num'),td(pct(r.share),'num'),td(pct(r.cumShare),'num'),td(esc(r.rawTopText||'')),td(esc(r.owner)),td(esc(r.action))],100);}
-function renderLtt(rows){const sorted=top(rows,'over_pos',ROWS.length); table('tblLtt',['RAG','AF','Trạng thái AF','Dòng hàng mẹ (AF)','Ngày','LTT','Phiếu TK','Mã VT','Tên VT','Máy','Thợ chính','SL TK','Lỗi','Vượt ĐM','Downtime','OEE','Data'],sorted,r=>[td(`<span class="badge ${cls[r.rag]}">${r.rag}</span>`),td(esc(r.af_code||'—')),td(esc(r.af_status)),td(esc(r.segment)),td(esc(r.date)),td(esc(r.ltt)),td(esc(r.stat)),td(esc(r.mat_code)),td(esc(String(r.mat_name).slice(0,80))),td(esc(r.machine)),td(esc(r.operator)),td(num(r.qty),'num'),td(num(r.ng),'num'),td(num(r.over_pos),'num'),td(dec(r.downtime)+'h','num'),td(pct(r.oee),'num'),td(`<span class="badge ${cls[r.confidence]||'gray'}">${esc(r.confidence)}</span>`) ],300);}
+function renderLtt(rows){const sorted=top(rows,'over_pos',ROWS.length); table('tblLtt',['RAG','AF gốc','AF chuẩn','Trạng thái AF','Dòng hàng mẹ (AF)','Ngày','LTT','Phiếu TK','Mã VT','Tên VT','Máy','Thợ chính','SL TK','Lỗi','Vượt ĐM','Downtime','OEE','Data'],sorted,r=>[td(`<span class="badge ${cls[r.rag]}">${r.rag}</span>`),td(esc(r.af_raw_code||'—')),td(esc(r.af_code||'—')),td(esc(r.af_status)),td(esc(r.segment)),td(esc(r.date)),td(esc(r.ltt)),td(esc(r.stat)),td(esc(r.mat_code)),td(esc(String(r.mat_name).slice(0,80))),td(esc(r.machine)),td(esc(r.operator)),td(num(r.qty),'num'),td(num(r.ng),'num'),td(num(r.over_pos),'num'),td(dec(r.downtime)+'h','num'),td(pct(r.oee),'num'),td(`<span class="badge ${cls[r.confidence]||'gray'}">${esc(r.confidence)}</span>`) ],300);}
 function renderMachine(rows){const mach=aggregate(rows,['segment','machine']), op=aggregate(rows,['segment','operator']); table('tblMachine',['RAG','Dòng hàng mẹ (AF)','Máy','LTT','Phiếu','SL TK','Lỗi','Tỷ lệ lỗi','Vượt ĐM','Downtime','OEE'],top(mach,'over_pos',150),r=>[td(`<span class="badge ${cls[r.rag]}">${r.rag}</span>`),td(esc(r.segment)),td(esc(r.machine)),td(num(r.ltt),'num'),td(num(r.stat),'num'),td(num(r.qty),'num'),td(num(r.ng),'num'),td(pct(r.defect_rate),'num'),td(num(r.over_pos),'num'),td(dec(r.downtime)+'h','num'),td(pct(r.oee),'num')],150); table('tblOperator',['RAG','Dòng hàng mẹ (AF)','Thợ chính','LTT','Phiếu','SL TK','Lỗi','Tỷ lệ lỗi','Vượt ĐM','Downtime'],top(op,'over_pos',150),r=>[td(`<span class="badge ${cls[r.rag]}">${r.rag}</span>`),td(esc(r.segment)),td(esc(r.operator)),td(num(r.ltt),'num'),td(num(r.stat),'num'),td(num(r.qty),'num'),td(num(r.ng),'num'),td(pct(r.defect_rate),'num'),td(num(r.over_pos),'num'),td(dec(r.downtime)+'h','num')],150);}
 function renderData(rows){const t=totals(rows),afBad=rows.filter(r=>['00','98','99'].includes(String(r.segment_code))).length,afConflict=rows.filter(r=>r.af_conflict_ltt||r.af_conflict_stat).length; $('dqCards').innerHTML=[kpi('Data đỏ',num(t.red),`${rows.length?pct(t.red/rows.length):'—'} số dòng lọc`),kpi('Data vàng',num(t.yellow),`${rows.length?pct(t.yellow/rows.length):'—'} số dòng lọc`),kpi('AF cần làm sạch',num(afBad),`${num(afConflict)} dòng xung đột LTT/phiếu`),kpi('Máy / LTT',`${num(t.machines)} / ${num(t.ltt)}`,'Phạm vi kiểm tra')].join(''); const issues={}; rows.forEach(r=>String(r.flags||'').split('; ').filter(Boolean).forEach(f=>issues[f]=(issues[f]||0)+1)); bars('chartDataQuality',Object.entries(issues).map(([issue,count])=>({issue,count})),'issue','count',{n:10,color:'red'}); $('dqConclusion').innerHTML=`<div class="alert red"><b>Kiểm soát AF:</b> 98 = xung đột AF theo LTT/phiếu, 00 = AF trống, 99 = AF ngoài master. Không nhập các dòng này vào KHC và không suy luận lại từ máy/công đoạn.</div><div class="alert"><b>Quy tắc dữ liệu:</b> xung đột AF = đỏ; AF trống/chưa ánh xạ = vàng; downtime thiếu nguyên nhân hoặc thời gian/OEE bất thường vẫn giữ cảnh báo như bộ cũ.</div>`; const bad=rows.filter(r=>r.confidence!=='Xanh'||['00','98','99'].includes(String(r.segment_code))); table('tblData',['Data','AF','Trạng thái AF','Dòng hàng mẹ (AF)','LTT','Phiếu','XĐ LTT','XĐ phiếu','Ngày','Máy','Thợ chính','OEE','Downtime','Flags'],bad,r=>[td(`<span class="badge ${cls[r.confidence]||'gray'}">${esc(r.confidence)}</span>`),td(esc(r.af_code||'—')),td(esc(r.af_status)),td(esc(r.segment)),td(esc(r.ltt)),td(esc(r.stat)),td(r.af_conflict_ltt?'Có':'—'),td(r.af_conflict_stat?'Có':'—'),td(esc(r.date)),td(esc(r.machine)),td(esc(r.operator)),td(pct(r.oee),'num'),td(dec(r.downtime)+'h','num'),td(esc(r.flags))],250);}
 function renderAction(rows){const m=top(aggregate(rows,['segment','machine']),'over_pos',8), dt=top(aggregate(rows,['segment','machine']),'downtime',5); let a=[]; m.filter(x=>x.over_pos>0).forEach(x=>a.push({rag:x.rag,type:'Sai hỏng vượt ĐM',where:`${x.segment} · ${x.machine}`,owner:'SX + CN + QC',deadline:'D+3',task:`Rà top lỗi, điều kiện setup, định mức và 3 LTT lỗi lớn nhất. Lỗi vượt: ${num(x.over_pos)}.`})); dt.filter(x=>x.downtime>2).forEach(x=>a.push({rag:x.rag,type:'Downtime/Bottleneck',where:`${x.segment} · ${x.machine}`,owner:x.nvl_h>=x.machine_h?'KH/Kho + SX':'QLTB + SX',deadline:'D+2',task:`Phân loại nguyên nhân downtime. Downtime: ${dec(x.downtime)}h.`})); rows.filter(r=>r.confidence==='Đỏ').slice(0,4).forEach(r=>a.push({rag:'Đỏ',type:'Dữ liệu sai nghiêm trọng',where:`${r.ltt} · ${r.machine}`,owner:'Thống kê + Dữ liệu',deadline:'24h',task:'Sửa thời gian/OEE/định mức hoặc bổ sung nguyên nhân để dashboard không kết luận sai.'})); const seen=new Set(); a=a.filter(x=>{const k=x.type+x.where;if(seen.has(k))return false;seen.add(k);return true;}).slice(0,14); $('actionList').innerHTML=a.length?a.map(x=>`<div class="action ${cls[x.rag]}"><div><span class="badge ${cls[x.rag]}">${x.rag}</span></div><div><h4>${esc(x.type)}</h4><p>${esc(x.where)}</p></div><div><h4>Owner</h4><p>${esc(x.owner)}</p></div><div><h4>Việc phải làm</h4><p>${esc(x.task)}</p></div><div><h4>Deadline</h4><p>${esc(x.deadline)}</p></div></div>`).join(''):'<div class="alert green">Không có action đỏ/vàng theo bộ lọc.</div>';}
@@ -1859,7 +1863,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   function fmtNum(v){return Math.round(toNum(v)).toLocaleString('vi-VN');}
   function pctText(v){return isFinite(v)?(v*100).toLocaleString('vi-VN',{maximumFractionDigits:1})+'%':'—';}
   function segmentFrom(af,conflict){
-    var a=clean(af).toUpperCase();
+    var a=typeof window.gspGs5CanonicalAf==='function'?window.gspGs5CanonicalAf(af):clean(af).toUpperCase();
     if(conflict)return '98_Xung đột AF theo LTT/phiếu';
     if(!a)return '00_Chưa khai báo dòng hàng mẹ';
     var master=(window.GS5_AF_MASTER||[]).find(function(item){return item.code===a;});
@@ -1867,7 +1871,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   }
   function rawRecord(raw){
     while(raw.length<100)raw.push('');
-    return {l:clean(raw[2]),st:clean(raw[45]),f:clean(raw[5]),g:clean(raw[6]),k:clean(raw[10]),s:toNum(raw[18]),x:raw[23],y:raw[24],ab:clean(raw[27]),af:clean(raw[31]).toUpperCase(),bg:toNum(raw[58]),mf:clean(raw[47]||raw[27]),t:0};
+    var rawAf=clean(raw[31]).toUpperCase(),canonical=typeof window.gspGs5CanonicalAf==='function'?window.gspGs5CanonicalAf(rawAf):rawAf;
+    return {l:clean(raw[2]),st:clean(raw[45]),f:clean(raw[5]),g:clean(raw[6]),k:clean(raw[10]),s:toNum(raw[18]),x:raw[23],y:raw[24],ab:clean(raw[27]),af_raw:rawAf,af:canonical,bg:toNum(raw[58]),mf:clean(raw[47]||raw[27]),t:0};
   }
   function cellValue(cell){
     if(!cell)return '';var v=cell.v;
@@ -1883,7 +1888,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   function recordsFromMatrix(matrix,start){
     var out=[];for(var i=start||0;i<matrix.length;i++){var raw=matrix[i].slice();if(clean(raw[4])!=='GS5')continue;if(!clean(raw[2])&&!clean(raw[5]))continue;out.push(rawRecord(raw));}
     var byLtt=new Map(),byStat=new Map();
-    function add(map,key,af){if(!key||!af)return;if(!map.has(key))map.set(key,new Set());map.get(key).add(af);}
+    function add(map,key,af){if(!key)return;if(!map.has(key))map.set(key,new Set());map.get(key).add(af||'__MISSING__');}
     out.forEach(function(r){add(byLtt,r.l,r.af);add(byStat,r.st,r.af);});
     out.forEach(function(r){r.af_conflict_ltt=Boolean(r.l&&byLtt.has(r.l)&&byLtt.get(r.l).size>1);r.af_conflict_stat=Boolean(r.st&&byStat.has(r.st)&&byStat.get(r.st).size>1);r.seg=segmentFrom(r.af,r.af_conflict_ltt||r.af_conflict_stat);});
     return out;

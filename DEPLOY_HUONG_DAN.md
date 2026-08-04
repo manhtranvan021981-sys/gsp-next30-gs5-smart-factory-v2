@@ -1,5 +1,15 @@
 # Hướng dẫn triển khai GitHub Pages – GS5 V2 – Dòng hàng mẹ AF
 
+## Cập nhật bản V2 hiện có
+
+Tải đè toàn bộ nội dung gói này vào đúng thư mục gốc repository GS5 V2. Không tải
+nguyên ZIP và không tạo thư mục bọc ngoài. Sau khi commit, vào **Actions → Cập
+nhật dashboard GS5 V2 – AF → Run workflow**. Lần chạy thủ công luôn tải lại Excel,
+tính SHA-256 và dựng lại toàn bộ dữ liệu theo tháng.
+
+Sau khi Actions xanh, mở dashboard và nhấn `Ctrl + F5`. Đối chiếu trạng thái nguồn:
+thời điểm tạo dữ liệu, tổng số dòng nhận và tháng mới nhất phải khớp file Excel mới.
+
 ## 1. Đưa bộ mã lên repository
 
 Upload toàn bộ nội dung **bên trong** gói này vào thư mục gốc của repository:
@@ -8,6 +18,7 @@ Upload toàn bộ nội dung **bên trong** gói này vào thư mục gốc củ
 - `scripts/process_excel.py`
 - `scripts/verify_build.py`
 - `scripts/test_af_contract.py`
+- `scripts/test_source_refresh.py`
 - `index.html`
 - `README.md`
 - `requirements.txt`

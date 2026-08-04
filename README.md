@@ -1,4 +1,18 @@
-# GSP NEXT30 – GS5 Smart Factory V2 – Dòng hàng mẹ AF
+# GSP NEXT30 – GS5 Smart Factory V2 – Dòng hàng mẹ AF + SHA-256
+
+## Cập nhật nguồn Excel không giới hạn số dòng cũ
+
+- Mỗi lượt chạy tải nội dung Excel hiện hành và tính SHA-256 toàn file.
+- Chỉ cần thêm dòng, thêm tháng hoặc đổi một ô thì checksum và khóa dữ liệu đổi.
+- Chạy thủ công bằng `Run workflow` luôn xử lý lại toàn bộ file, kể cả khi cache tồn tại.
+- Manifest công bố checksum, dung lượng, số dòng quét/nhận, ngày đầu-cuối và tháng mới nhất.
+- Workflow tự chạy khi thay mã nguồn trên nhánh `main` và vẫn chạy định kỳ như trước.
+
+## Alias Dòng hàng mẹ AF
+
+- `SOB, SOE, SOA, SBA, SBC, SBE, SOC, SOG, SEE, SEC` → `PHOI`.
+- `DUP` → `HBL`.
+- Xung đột được kiểm tra sau quy đổi alias; mã AF gốc vẫn nằm trong dữ liệu để truy vết.
 
 Dashboard nhà máy thông minh GS5 V2, phát hành độc lập bằng GitHub Actions và GitHub Pages. Bộ GS5 hiện tại được giữ nguyên để backup/rollback.
 
@@ -30,7 +44,7 @@ Dashboard nhà máy thông minh GS5 V2, phát hành độc lập bằng GitHub A
 - `99`: AF ngoài master 19 mã.
 - `KHC` là dòng hàng hợp lệ số 17, không dùng để chứa AF lỗi.
 - Không suy luận AF từ máy, công đoạn, vật tư, AG hoặc AH.
-- Schema dữ liệu: `gs5-static-shards-v2-af`.
+- Schema dữ liệu: `gs5-static-shards-v3-af-alias-sha256`.
 
 ## Chạy thủ công
 
@@ -41,7 +55,7 @@ Mở `Actions` → `Cập nhật dashboard GS5 V2 – AF` → `Run workflow`.
 - Không upload file Excel 148 MB vào repository.
 - Không lưu mật khẩu, cookie hoặc token Google Drive trong mã nguồn.
 - Nếu tải/xử lý/kiểm tra lỗi, workflow dừng; GitHub Pages tiếp tục giữ bản hợp lệ gần nhất.
-- Cache V2 dùng namespace `gs5-v2-af-data-*`, độc lập hoàn toàn với GS5 V1.
+- Cache nội dung dùng namespace `gs5-v3-content-sha256-*`, độc lập với GS5 V1/V2 cũ.
 - `Action tuần này` chưa kết nối vì chưa có sheet `00_Task_Schedule` riêng cho GS5. Không dùng nhầm nguồn GS6.
 - Repository và dữ liệu đã xử lý là công khai theo lựa chọn phương án A.
 - GitHub tự tắt workflow theo lịch ở repository public nếu 60 ngày không có hoạt động; khi đó cần mở `Actions` và bật lại.
@@ -51,6 +65,7 @@ Mở `Actions` → `Cập nhật dashboard GS5 V2 – AF` → `Run workflow`.
 ```bash
 python scripts/process_excel.py --input P3_Tong_Hop_LTT_2507.xlsx --out site/data
 python scripts/test_af_contract.py
+python scripts/test_source_refresh.py
 python scripts/verify_build.py --data site/data
 python -m http.server 8000 --directory site
 ```
