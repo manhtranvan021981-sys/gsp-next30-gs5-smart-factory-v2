@@ -22,7 +22,7 @@ Dashboard nhà máy thông minh GS5 V2, phát hành độc lập bằng GitHub A
 2. Nếu file không đổi, workflow dừng và giữ nguyên bản dashboard đang chạy.
 3. Nếu file đổi, bộ xử lý đọc streaming sheet `P3.Tổng hợp lệnh thao tác`, vùng `A9:CT`.
 4. Chỉ các dòng có cột E bằng `GS5` được chấp nhận.
-5. Bộ xử lý quét trước AF theo LTT và phiếu thống kê, sau đó phân loại chính xác theo master 19 mã.
+5. Bộ xử lý quét trước các AF hợp lệ theo LTT và phiếu thống kê; chỉ từ hai AF chuẩn khác nhau mới tạo cờ xung đột thật.
 6. Dữ liệu được chia theo tháng và nén gzip; dashboard chỉ tải một tháng mỗi lần để bảo vệ RAM.
 7. Bản dữ liệu đạt kiểm tra hợp đồng AF và kiểm tra gói build mới được phát hành lên GitHub Pages.
 
@@ -40,11 +40,13 @@ Dashboard nhà máy thông minh GS5 V2, phát hành độc lập bằng GitHub A
 
 - 19 mã chuẩn: `HOC/HOT/HBD/HBL/FLC/FLP/FPK/SHD/PLL/PHOI/GCI/KHA/TUI/NVLC/NVLP/PTRO/KHC/LE/TCKT`.
 - `00`: AF trống.
-- `98`: LTT hoặc phiếu thống kê có nhiều AF.
+- `98`: bộ lọc chất lượng cho LTT/phiếu có từ hai AF chuẩn khác nhau; không phải mảng KPI thay thế.
 - `99`: AF ngoài master 19 mã.
 - `KHC` là dòng hàng hợp lệ số 17, không dùng để chứa AF lỗi.
 - Không suy luận AF từ máy, công đoạn, vật tư, AG hoặc AH.
-- Schema dữ liệu: `gs5-static-shards-v3-af-alias-sha256`.
+- AF trống và AF chưa ánh xạ không được dùng để tạo xung đột thật; chúng giữ riêng ở `00` và `99`.
+- Dòng có xung đột thật vẫn giữ nguyên mảng KPI theo AF chuẩn của chính dòng đó.
+- Schema dữ liệu: `gs5-static-shards-v4-af-quality-independent`.
 
 ## Chạy thủ công
 
@@ -55,7 +57,7 @@ Mở `Actions` → `Cập nhật dashboard GS5 V2 – AF` → `Run workflow`.
 - Không upload file Excel 148 MB vào repository.
 - Không lưu mật khẩu, cookie hoặc token Google Drive trong mã nguồn.
 - Nếu tải/xử lý/kiểm tra lỗi, workflow dừng; GitHub Pages tiếp tục giữ bản hợp lệ gần nhất.
-- Cache nội dung dùng namespace `gs5-v3-content-sha256-*`, độc lập với GS5 V1/V2 cũ.
+- Cache nội dung dùng namespace `gs5-v4-af-quality-*`, độc lập với GS5 V1/V2 cũ.
 - `Action tuần này` chưa kết nối vì chưa có sheet `00_Task_Schedule` riêng cho GS5. Không dùng nhầm nguồn GS6.
 - Repository và dữ liệu đã xử lý là công khai theo lựa chọn phương án A.
 - GitHub tự tắt workflow theo lịch ở repository public nếu 60 ngày không có hoạt động; khi đó cần mở `Actions` và bật lại.
