@@ -13,6 +13,7 @@ EXPECTED_COLS = [
     "date",
     "month",
     "week",
+    "af_raw_code",
     "af_code",
     "af_status",
     "segment_code",
@@ -75,14 +76,27 @@ EXPECTED_COLS = [
     "capa_rate_tech",
 ]
 
-EXPECTED_SCHEMA = "gs5-static-shards-v2-af"
+EXPECTED_SCHEMA = "gs5-static-shards-v3-af-alias-sha256"
+AF_ALIASES = {
+    "SOB": "PHOI",
+    "SOE": "PHOI",
+    "SOA": "PHOI",
+    "SBA": "PHOI",
+    "SBC": "PHOI",
+    "SBE": "PHOI",
+    "SOC": "PHOI",
+    "SOG": "PHOI",
+    "SEE": "PHOI",
+    "SEC": "PHOI",
+    "DUP": "HBL",
+}
 MASTER_SEGMENTS = {
     "HOC": ("01_HOC", "01_Nhóm hàng Hộp cứng"),
     "HOT": ("02_HOT", "02_Nhóm hàng Hộp thường (hộp mềm)"),
     "HBD": ("03_HBD", "03_Nhóm hàng Hộp bồi duplex"),
     "HBL": ("04_HBL", "04_Nhóm hàng Hộp bồi label"),
     "FLC": ("05_FLC", "05_Nhóm hàng Hộp Flexo carton"),
-    "FLP": ("06_FLP", "06_Nhóm hàng Hộp Flexo proces"),
+    "FLP": ("06_FLP", "06_Nhóm hàng Hộp Flexo process"),
     "FPK": ("07_FPK", "07_Nhóm hàng PK phôi carton"),
     "SHD": ("08_SHD", "08_Nhóm hàng Sách hướng dẫn"),
     "PLL": ("09_PLL", "09_Nhóm hàng Pallet"),
@@ -117,12 +131,23 @@ def main() -> int:
     manifest_path = args.data / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["schema"] == EXPECTED_SCHEMA
-    assert manifest["schema_version"] == 2
+    assert manifest["schema_version"] == 3
     assert manifest["plant"] == args.plant, (
         f"Sai nhà máy: manifest={manifest['plant']}, yêu cầu={args.plant}."
     )
     assert manifest["global"]["accepted_rows"] > 0
+    assert manifest["scanned_rows"] == manifest["global"]["scanned_rows"]
+    assert manifest["accepted_rows"] == manifest["global"]["accepted_rows"]
+    assert manifest["scanned_rows"] >= manifest["accepted_rows"]
+    assert manifest["source_size"] > 0
+    assert len(manifest["source_sha256"]) == 64
+    assert manifest["source"]["sha256"] == manifest["source_sha256"]
+    assert manifest["af_aliases"] == AF_ALIASES
     assert manifest["periods"], "Không có phân vùng tháng."
+    dated = [item["value"] for item in manifest["periods"] if item["value"] != "Không tháng"]
+    expected_latest = dated[-1] if dated else "Không tháng"
+    assert manifest["latest_detected_period"] == expected_latest
+    assert manifest["latest_period"] == expected_latest
     assert len(manifest["af_master"]) == 19
     assert [item["code"] for item in manifest["af_master"]] == list(MASTER_SEGMENTS)
     assert [item["segment_code"] for item in manifest["af_control_groups"]] == [
@@ -145,6 +170,7 @@ def main() -> int:
         for raw in payload["rows"]:
             row = dict(zip(EXPECTED_COLS, raw))
             af_code = str(row["af_code"] or "")
+            af_raw_code = str(row["af_raw_code"] or "")
             segment_code = str(row["segment_code"] or "")
             segment_label = str(row["segment_label"] or "")
             assert row["segment"] == segment_label
@@ -153,19 +179,25 @@ def main() -> int:
                 assert segment_label == CONTROL_SEGMENTS[segment_code]
                 if segment_code == "00":
                     assert af_code == ""
+                    assert af_raw_code == ""
                     assert row["af_status"] == "AF trống"
                 elif segment_code == "98":
                     assert row["af_conflict_ltt"] or row["af_conflict_stat"]
                     assert str(row["af_status"]).startswith("Xung đột")
                 else:
                     assert af_code and af_code not in MASTER_SEGMENTS
+                    assert af_raw_code not in AF_ALIASES
                     assert row["af_status"] == "AF ngoài danh mục"
             else:
                 assert af_code in MASTER_SEGMENTS
+                assert AF_ALIASES.get(af_raw_code, af_raw_code) == af_code
                 expected_code, expected_label = MASTER_SEGMENTS[af_code]
                 assert segment_code == expected_code
                 assert segment_label == expected_label
-                assert row["af_status"] == "Hợp lệ"
+                expected_status = (
+                    "Hợp lệ qua ánh xạ" if af_raw_code in AF_ALIASES else "Hợp lệ"
+                )
+                assert row["af_status"] == expected_status
                 assert not row["af_conflict_ltt"]
                 assert not row["af_conflict_stat"]
         total += period["rows"]

@@ -39,7 +39,7 @@ SOURCE_URL = (
     "https://drive.usercontent.google.com/download"
     f"?id={FILE_ID}&export=download&confirm=t"
 )
-SCHEMA_VERSION = "gs5-static-shards-v2-af"
+SCHEMA_VERSION = "gs5-static-shards-v3-af-alias-sha256"
 MAX_COLUMNS = 98  # A:CT, zero-based indices 0..97.
 
 AF_MASTER: tuple[tuple[str, str, str], ...] = (
@@ -48,7 +48,7 @@ AF_MASTER: tuple[tuple[str, str, str], ...] = (
     ("03", "HBD", "03_Nhóm hàng Hộp bồi duplex"),
     ("04", "HBL", "04_Nhóm hàng Hộp bồi label"),
     ("05", "FLC", "05_Nhóm hàng Hộp Flexo carton"),
-    ("06", "FLP", "06_Nhóm hàng Hộp Flexo proces"),
+    ("06", "FLP", "06_Nhóm hàng Hộp Flexo process"),
     ("07", "FPK", "07_Nhóm hàng PK phôi carton"),
     ("08", "SHD", "08_Nhóm hàng Sách hướng dẫn"),
     ("09", "PLL", "09_Nhóm hàng Pallet"),
@@ -66,6 +66,19 @@ AF_MASTER: tuple[tuple[str, str, str], ...] = (
 AF_BY_CODE = {
     code: {"sort": sort, "code": code, "segment_code": f"{sort}_{code}", "label": label}
     for sort, code, label in AF_MASTER
+}
+AF_ALIASES: dict[str, str] = {
+    "SOB": "PHOI",
+    "SOE": "PHOI",
+    "SOA": "PHOI",
+    "SBA": "PHOI",
+    "SBC": "PHOI",
+    "SBE": "PHOI",
+    "SOC": "PHOI",
+    "SOG": "PHOI",
+    "SEE": "PHOI",
+    "SEC": "PHOI",
+    "DUP": "HBL",
 }
 AF_CONTROL_GROUPS: tuple[dict[str, str], ...] = (
     {
@@ -93,6 +106,7 @@ PROCESSED_COLS = [
     "date",
     "month",
     "week",
+    "af_raw_code",
     "af_code",
     "af_status",
     "segment_code",
@@ -294,6 +308,11 @@ def normalize_af(value: Any) -> str:
     return clean_text(value).upper()
 
 
+def canonical_af(value: Any) -> str:
+    normalized = normalize_af(value)
+    return AF_ALIASES.get(normalized, normalized)
+
+
 def classify_af(
     raw: list[Any],
     ltt_conflicts: set[str] | None = None,
@@ -301,7 +320,8 @@ def classify_af(
 ) -> dict[str, Any]:
     ltt = clean_text(raw_at(raw, 2))
     stat = clean_text(raw_at(raw, 45))
-    af_code = normalize_af(raw_at(raw, 31))
+    af_raw_code = normalize_af(raw_at(raw, 31))
+    af_code = canonical_af(af_raw_code)
     conflict_ltt = bool(ltt and ltt_conflicts and ltt in ltt_conflicts)
     conflict_stat = bool(stat and stat_conflicts and stat in stat_conflicts)
 
@@ -321,9 +341,10 @@ def classify_af(
         status = "AF ngoài danh mục"
     else:
         item = AF_BY_CODE[af_code]
-        status = "Hợp lệ"
+        status = "Hợp lệ qua ánh xạ" if af_raw_code in AF_ALIASES else "Hợp lệ"
 
     return {
+        "af_raw_code": af_raw_code,
         "af_code": af_code,
         "af_status": status,
         "segment_code": item["segment_code"],
@@ -674,9 +695,7 @@ def analyze_af_conflicts(
         ):
             continue
         inspected += 1
-        af_code = normalize_af(raw_at(raw, 31))
-        if not af_code:
-            continue
+        af_code = canonical_af(raw_at(raw, 31)) or "__MISSING__"
         ltt = clean_text(raw_at(raw, 2))
         stat = clean_text(raw_at(raw, 45))
         if ltt:
@@ -832,38 +851,48 @@ def write_gzip_json(
             zipped.write(suffix.encode("utf-8"))
 
 
-def format_source_signature(headers: dict[str, str], file_id: str) -> str:
-    parts = [
-        SCHEMA_VERSION,
-        file_id,
-        headers.get("content-length", ""),
-        headers.get("last-modified", ""),
-        headers.get("etag", ""),
-    ]
-    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:24]
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        while chunk := source.read(4 * 1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
-def probe_source(url: str, file_id: str) -> dict[str, Any]:
-    request = Request(url, method="HEAD", headers={"User-Agent": "GS5-Dashboard/1.0"})
-    with urlopen(request, timeout=60) as response:
-        headers = {key.lower(): value for key, value in response.headers.items()}
-        resolved_url = response.geturl()
-    size = int(headers.get("content-length", "0") or 0)
-    if size <= 0:
-        raise RuntimeError("Nguồn Excel không trả Content-Length hợp lệ.")
+def source_signature(file_id: str, content_sha256: str) -> str:
+    payload = f"{SCHEMA_VERSION}|{file_id}|{content_sha256}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
+
+
+def cache_busted_url(url: str) -> str:
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}gs5_source_check={time.time_ns()}"
+
+
+def probe_source(url: str, file_id: str, target: Path) -> dict[str, Any]:
+    download_meta = download_source(cache_busted_url(url), target)
+    digest = sha256_file(target)
     return {
-        "signature": format_source_signature(headers, file_id),
-        "size": size,
-        "modified": headers.get("last-modified", ""),
-        "etag": headers.get("etag", ""),
-        "resolved_url": resolved_url,
+        "signature": source_signature(file_id, digest),
+        "source_sha256": digest,
+        "size": target.stat().st_size,
+        "modified": download_meta.get("modified", ""),
+        "etag": download_meta.get("etag", ""),
+        "resolved_url": download_meta.get("resolved_url", ""),
+        "download_path": str(target),
     }
 
 
-def download_source(url: str, target: Path, expected_size: int = 0) -> None:
+def download_source(
+    url: str, target: Path, expected_size: int = 0
+) -> dict[str, str]:
     target.parent.mkdir(parents=True, exist_ok=True)
     request = Request(url, headers={"User-Agent": "GS5-Dashboard/1.0"})
     with urlopen(request, timeout=300) as response:
+        response_headers = {
+            key.lower(): value for key, value in response.headers.items()
+        }
+        resolved_url = response.geturl()
         content_type = response.headers.get("content-type", "")
         with target.open("wb") as output:
             downloaded = 0
@@ -887,6 +916,11 @@ def download_source(url: str, target: Path, expected_size: int = 0) -> None:
         raise RuntimeError(
             f"Nguồn tải về không phải XLSX/ZIP. Content-Type: {content_type}"
         )
+    return {
+        "modified": response_headers.get("last-modified", ""),
+        "etag": response_headers.get("etag", ""),
+        "resolved_url": resolved_url,
+    }
 
 
 def schedule_window() -> tuple[datetime, datetime]:
@@ -948,6 +982,7 @@ def build_data(
     global_date_max = ""
     global_segment_counts: dict[str, int] = defaultdict(int)
     global_af_counts: dict[str, int] = defaultdict(int)
+    global_af_raw_counts: dict[str, int] = defaultdict(int)
     global_af_status_counts: dict[str, int] = defaultdict(int)
     global_af_conflict_rows = 0
 
@@ -1001,6 +1036,9 @@ def build_data(
                 processed_obj = dict(zip(PROCESSED_COLS, processed))
                 global_segment_counts[str(processed_obj["segment_code"])] += 1
                 global_af_counts[str(processed_obj["af_code"] or "(trống)")] += 1
+                global_af_raw_counts[
+                    str(processed_obj["af_raw_code"] or "(trống)")
+                ] += 1
                 global_af_status_counts[str(processed_obj["af_status"])] += 1
                 if (
                     processed_obj["af_conflict_ltt"]
@@ -1212,11 +1250,18 @@ def build_data(
     dated_periods = [item["value"] for item in periods if item["value"] != "Không tháng"]
     manifest = {
         "schema": SCHEMA_VERSION,
-        "schema_version": 2,
+        "schema_version": 3,
         "plant": plant_code,
         "generated_at": generated_iso,
         "generated_display": generated,
         "latest_period": dated_periods[-1] if dated_periods else "Không tháng",
+        "latest_detected_period": dated_periods[-1] if dated_periods else "Không tháng",
+        "source_sha256": source_meta.get("source_sha256", ""),
+        "source_size": source_meta.get("size", workbook_path.stat().st_size),
+        "scanned_rows": scanned,
+        "accepted_rows": accepted,
+        "date_min": global_date_min,
+        "date_max": global_date_max,
         "load_mode": "single-period",
         "load_mode_note": (
             "Dashboard chỉ nạp một tháng mỗi lần để tránh giữ hàng trăm nghìn dòng "
@@ -1229,6 +1274,7 @@ def build_data(
             }
             for _, code, _ in AF_MASTER
         ],
+        "af_aliases": dict(AF_ALIASES),
         "af_control_groups": [
             {
                 **item,
@@ -1245,6 +1291,7 @@ def build_data(
             "modified": source_meta.get("modified", ""),
             "etag": source_meta.get("etag", ""),
             "signature": source_meta["signature"],
+            "sha256": source_meta.get("source_sha256", ""),
         },
         "global": {
             "scanned_rows": scanned,
@@ -1271,6 +1318,17 @@ def build_data(
                 "af_counts": dict(
                     sorted(global_af_counts.items(), key=lambda item: (-item[1], item[0]))
                 ),
+                "raw_af_counts": dict(
+                    sorted(
+                        global_af_raw_counts.items(),
+                        key=lambda item: (-item[1], item[0]),
+                    )
+                ),
+                "alias_rows": {
+                    alias: global_af_raw_counts.get(alias, 0)
+                    for alias in AF_ALIASES
+                    if global_af_raw_counts.get(alias, 0)
+                },
                 "status_counts": dict(sorted(global_af_status_counts.items())),
             },
         },
@@ -1290,19 +1348,15 @@ def build_data(
     return manifest
 
 
-def local_source_meta(path: Path) -> dict[str, Any]:
+def local_source_meta(path: Path, file_id: str = "local") -> dict[str, Any]:
     stat = path.stat()
-    digest = hashlib.sha256()
-    with path.open("rb") as source:
-        while chunk := source.read(4 * 1024 * 1024):
-            digest.update(chunk)
+    digest = sha256_file(path)
     return {
-        "signature": hashlib.sha256(
-            f"{SCHEMA_VERSION}|{stat.st_size}|{digest.hexdigest()}".encode("utf-8")
-        ).hexdigest()[:24],
+        "signature": source_signature(file_id, digest),
+        "source_sha256": digest,
         "size": stat.st_size,
         "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
-        "etag": digest.hexdigest(),
+        "etag": digest,
     }
 
 
@@ -1317,40 +1371,52 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--file-name", default=FILE_NAME)
     parser.add_argument("--sheet-name", default=SHEET_NAME)
     parser.add_argument("--source-url", default=SOURCE_URL)
+    parser.add_argument("--download-to", type=Path)
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    probe_download: Path | None = None
     if args.input:
-        source_meta = local_source_meta(args.input)
+        source_meta = local_source_meta(args.input, args.file_id)
     else:
-        source_meta = probe_source(args.source_url, args.file_id)
+        if args.download_to:
+            probe_download = args.download_to
+        else:
+            probe_dir = Path(tempfile.mkdtemp(prefix="gs5-probe-"))
+            probe_download = probe_dir / args.file_name
+        source_meta = probe_source(args.source_url, args.file_id, probe_download)
     if args.probe:
         output = {
             "signature": source_meta["signature"],
             "size": source_meta["size"],
             "modified": source_meta.get("modified", ""),
+            "source_sha256": source_meta.get("source_sha256", ""),
         }
         print(compact_json(output))
         if args.github_output:
             with args.github_output.open("a", encoding="utf-8") as stream:
                 for key, value in output.items():
                     stream.write(f"{key}={value}\n")
+        if not args.download_to and probe_download:
+            shutil.rmtree(probe_download.parent, ignore_errors=True)
         return 0
 
     temporary_download: Path | None = None
     workbook_path = args.input
-    if not workbook_path:
+    if not workbook_path and probe_download and probe_download.exists():
+        workbook_path = probe_download
+        if not args.download_to:
+            temporary_download = probe_download
+    elif not workbook_path:
         temp_dir = Path(tempfile.mkdtemp(prefix="gs5-source-"))
         temporary_download = temp_dir / args.file_name
         print(
             f"Tải Excel {source_meta['size'] / 1024 / 1024:.1f} MB từ Drive...",
             flush=True,
         )
-        download_source(
-            args.source_url, temporary_download, int(source_meta["size"])
-        )
+        download_source(args.source_url, temporary_download, int(source_meta["size"]))
         workbook_path = temporary_download
     assert workbook_path is not None
     try:
